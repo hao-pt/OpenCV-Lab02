@@ -11,4 +11,3 @@ def writeImage(winName, img):
     #Display image
     cv2.namedWindow(winName, cv2.WINDOW_AUTOSIZE)
     cv2.imshow(winName, img)
-
