@@ -11,7 +11,7 @@ import filter as flt
 
 def main():
     # input image
-    img = myImage.readImage("checkerboard.png")
+    img = myImage.readImage("empire.jpg")
     #Grayscale image
     grayImg = myImage.grayScale(img)
 

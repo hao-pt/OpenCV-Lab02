@@ -1,23 +1,44 @@
 # Built-in lib
-import numpy as np
-import cv2
-from skimage import exposure, img_as_ubyte
 import math
+import cv2
+import numpy as np
 from matplotlib import pyplot as plt
+from skimage import exposure, img_as_ubyte
+import scipy.integrate as sci_int
 
 # Built-out lib
 import convolution as myconv
 
-def gaussianXFunction(size, sigma):
-    # Kernel radius
-    kernelRadius = size // 2
-    # x will range in [-kernelRadius, kernelRadius]
-    x = np.array([range(-kernelRadius, kernelRadius + 1)], np.float64).reshape(size, 1)
+
+def integrand(x, sigma):
     # Calculate gaussian kernel X by gaussian function
     twoSquareSigma = 2 * (sigma**2)
+    twoPi = 2 * math.pi
     x_2 = x*x
-    gaussX = (1/math.sqrt(math.pi*twoSquareSigma)) * np.exp(-x_2/twoSquareSigma)
+    gaussX = (1/(math.sqrt(twoPi) * sigma)) * np.exp(-x_2/twoSquareSigma)
     return gaussX
+
+# Compute gaussianX integral
+def gaussX_int(f, sigma, a, b):
+    return sci_int.quad(f, a, b, args = sigma)[0]
+
+# Calculate vertical gaussian X
+def gaussianXFunction(size, sigma):
+    minX = -size/2
+    maxX = size/2
+    step = 1
+
+    # a, b
+    a_range = np.arange(minX, maxX - step + 1.0, step)
+    b_range = np.arange(minX + step, maxX + 1.0, step)
+
+    # Vectorize gaussX_int function
+    vec_gaussX_int = np.vectorize(gaussX_int)
+
+    # Replicate gaussX_int function for each a, b
+    gaussX = vec_gaussX_int(integrand, sigma, a_range, b_range)
+    
+    return gaussX.reshape(-1, 1)
 
 # Find threshold base on ratio of two threshold
 # In this case, we pick sigma = 0.033 base on experience when testing often give stable result
@@ -88,6 +109,7 @@ def get_feature_points(Hessian, ratio = 0.1, minDist = 10):
     # Assume that margin = 10 dont have corner.
     # The region inside (exclude margin) are allowed location to have corner 
     allowedPos = np.zeros(Hessian.shape, np.uint8)
+
     # Label all alowed location with 1
     allowedPos[minDist:-minDist, minDist:-minDist] = 1
 
@@ -167,9 +189,9 @@ class CFilter:
         # Normalize gaussian kernel by averaging
         sumX = np.sum(gaussX)
         sumY = np.sum(gaussY)
-        # Round it 4 decimals
-        gaussX = np.round(gaussX/sumX, 4)
-        gaussY = np.round(gaussY/sumY, 4)
+        
+        gaussX = gaussX/sumX
+        gaussY = gaussY/sumY
 
         self.gaussKernelX = gaussX
         self.gaussKernelY = gaussY
@@ -179,8 +201,8 @@ class CFilter:
     def detectBySobel(self, img):
         # Declare CMyConvolution() object
         conv = myconv.CMyConvolution()
-        # Smoothen image to have blur the noise and the detail of edges
-        img = self.smoothenImage(img)
+        # # Smoothen image to have blur the noise and the detail of edges
+        # img = self.smoothenImage(img)
         # Convole with vertical kernel
         conv.setKernel(self.sobelKernel['Gx'])
         verticalImage = conv.convolution(img)
@@ -192,7 +214,7 @@ class CFilter:
 
     def detectByHarris(self, img):
         # Generate gassian filter
-        self.gaussianGenerator(5, 1.0)
+        self.gaussianGenerator(7, 1.4)
         # 1. Compute sobelX and sobelY derivatives
         Ix, Iy = self.detectBySobel(img)
         
@@ -217,9 +239,10 @@ class CFilter:
         R = Hdet - k * (Htr ** 2)
         # R = np.true_divide(Hdet, Htr)
 
-        # Threshold on value of R. Compute nonmax suppression
+        # 5. Threshold on value of R. Compute nonmax suppression
         # Find local maxima above a certain threshold and report them as detected feature
         # point locations.
+
         # supImg = Non_maximum_suppression(R)
 
         # plt.figure(2)
@@ -231,11 +254,6 @@ class CFilter:
         # plt.title('Suppression'), plt.xticks([]), plt.yticks([])
 
         # corImg = thresholding(supImg)
-
         featurePoints = get_feature_points(R, ratio = 0.01)
         plot_feature_points(featurePoints)
-
-        # return corImg
-        
-
 
