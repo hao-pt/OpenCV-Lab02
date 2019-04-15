@@ -7,10 +7,8 @@ b = a[np.array([0, 1, 1, 2]), np.array([4, 1, 2, 0])]
 print(b)
 print(a[0:-1, 0:-1])
 
-f = lambda x: np.exp(-x**2)
-res = sci_int.quad(f, 0, 1)[0]
-print(res)
-
-gaussX = gaussianXFunction(5, 1.0)
-
-print(gaussX)
+a = np.array([[1, 0.5, -5], [-3, 1, 2.5]])
+b = np.ones((2, 3))
+print(b)
+c = np.minimum(a, b)
+print(c)
