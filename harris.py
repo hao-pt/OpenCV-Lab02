@@ -62,12 +62,11 @@ def get_feature_points(Hessian, ratio = 0.1, minDist = 10):
     #  and returns N strongest corners.
     indices = np.argsort(candidateValue)[::-1]
 
-    # Assume that margin = 10 dont have corner.
-    # The region inside (exclude margin) are allowed location to have corner 
-    allowedPos = np.zeros(Hessian.shape, np.uint8)
-
+    # The region inside are allowed location to have corner
     # Label all alowed location with 1
-    allowedPos[minDist:-minDist, minDist:-minDist] = 1
+    allowedPos = np.ones(Hessian.shape, np.uint8)
+
+    # allowedPos[minDist:-minDist, minDist:-minDist] = 1
 
     # List store feature points
     pointsX = []
@@ -83,8 +82,14 @@ def get_feature_points(Hessian, ratio = 0.1, minDist = 10):
             pointsX.append(x)
             pointsY.append(y)
 
+            startX = (x-minDist) if (x-minDist) > 0 else 0
+            endX = (x+minDist) if (x+minDist) < Hessian.shape[0] else Hessian.shape[0]
+
+            startY = (y-minDist) if (y-minDist) > 0 else 0
+            endY = (y+minDist) if (y+minDist) < Hessian.shape[1] else Hessian.shape[1]
+
             # All pixels around [x,y] position in range of minDist = 10 will set as non-allowed location
-            allowedPos[(x-minDist):(x+minDist), (y-minDist):(y+minDist)] = 0
+            allowedPos[startX:endX, startY:endY] = 0
 
     return [pointsX, pointsY]
 
@@ -98,6 +103,7 @@ def detectByHarris(img):
         myfilter = flt.CFilter()
 
         # 1. Compute sobelX and sobelY derivatives
+        myfilter.gaussianGenerator(5, 1.0)
         Ix, Iy = myfilter.detectBySobel(img)
         
         # 2. Compute product of derivatives at every pixel
@@ -106,7 +112,7 @@ def detectByHarris(img):
         Ixy = Ix * Iy
 
         # 3. Compute Hessian matrix: Convolve 3 image above with gaussian filter
-        myfilter.gaussianGenerator(5, 1.0)
+        myfilter.gaussianGenerator(7, 1.5)
         Sx2 = myfilter.smoothenImage(Ix2)
         Sy2 = myfilter.smoothenImage(Iy2)
         Sxy = myfilter.smoothenImage(Ixy)
@@ -151,5 +157,6 @@ def detectByHarris(img):
         
         # Find good feature points
         featurePoints = get_feature_points(R)
+        
         # Plot these feature points overlaid origin img
         plot_feature_points(featurePoints)

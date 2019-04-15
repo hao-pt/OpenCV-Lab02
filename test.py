@@ -1,14 +1,31 @@
 import numpy as np
 import scipy.integrate as sci_int
 import math
+import cv2
+from matplotlib import pyplot as plt
 
-a = np.array([[1, 2, 5, 2, 4, 10], [5, 9, 0, 9, 3, 54], [5, 20, -4, 3, 1.5, 2]])
-b = a[np.array([0, 1, 1, 2]), np.array([4, 1, 2, 0])]
-print(b)
-print(a[0:-1, 0:-1])
+def plot_feature_points(feturePoints):
+    pX, pY = feturePoints
+    # Note: Axes of plot and image is reverted
+    plt.plot(pY, pX, '*')
 
-a = np.array([[1, 0.5, -5], [-3, 1, 2.5]])
-b = np.ones((2, 3))
-print(b)
-c = np.minimum(a, b)
-print(c)
+# Read img
+img = cv2.imread("checkerboard.png")
+# Gray-scale image
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Convert type as np.float
+grayf = np.float32(gray)
+# Call cv2.cornerHarris function
+dst = cv2.cornerHarris(grayf,2,3,0.04)
+
+# Threshold image
+x, y = np.nonzero(dst > 0.1*dst.max())
+
+plt.figure(1)
+plt.imshow(gray, cmap='gray', interpolation = 'bicubic')
+plt.title('Corner detection'), plt.xticks([]), plt.yticks([])
+
+plot_feature_points((x, y))
+
+plt.show()

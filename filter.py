@@ -52,44 +52,7 @@ def thresholdSeeking(img, sigma = 0.033):
 
     return lowThreshold, highThreshold
 
-# Function to find local mixima
-def Non_maximum_suppression(img):
-    #Pre-Define indices of neighbors of pixel[i][j] to speed up when computing
-    # xidx = np.array([-1, -1, -1, 0, 0, 1, 1, 1]) #Vertical axe: relative neighbor for x coordinate
-    # yidx = np.array([-1, 0, 1, -1, 1, -1, 0, 1]) #Horizontal axe: relative neighbor for y coordinate
-    xidx = np.array([0, -1, 0, 1]) #Vertical axe: relative neighbor for x coordinate
-    yidx = np.array([-1, 0, 1, 0]) #Horizontal axe: relative neighbor for y coordinate
-    # Get size of img
-    iH, iW = img.shape
 
-    # Init outImg
-    outImg = np.zeros(img.shape, np.uint8)
-
-    for i in range(1, iH - 1):
-        for j in range(1, iW - 1):
-            # If img[i][j] is not local maximum then assign 0
-            if np.any(img[i][j] < img[i + xidx, j + yidx]):
-                outImg.itemset((i, j), 0)
-            else:
-                outImg.itemset((i, j), img[i][j])
-            
-    return outImg
-
-# Find feature points that response value > threshold
-def thresholding(img, ratio = 0.1):
-    # Compute threshold
-    threshold = ratio * np.max(img)
-
-    # Find feature by threshold image
-    idx, idy = np.nonzero(img > threshold)
-
-    # Init ouImg
-    outImg = np.zeros(img.shape, np.uint8)
-
-    # Asign feature point equal 255
-    outImg[idx, idy] = 255
-
-    return outImg            
 
 
 class CFilter:
@@ -156,8 +119,8 @@ class CFilter:
     def detectBySobel(self, img):
         # Declare CMyConvolution() object
         conv = myconv.CMyConvolution()
-        # # Smoothen image to have blur the noise and the detail of edges
-        # img = self.smoothenImage(img)
+        # Smoothen image to have blur the noise and the detail of edges
+        img = self.smoothenImage(img)
         # Convole with vertical kernel
         conv.setKernel(self.sobelKernel['Gx'])
         verticalImage = conv.convolution(img)
