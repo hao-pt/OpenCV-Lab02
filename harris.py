@@ -112,7 +112,7 @@ def detectByHarris(img):
         Ixy = Ix * Iy
 
         # 3. Compute Hessian matrix: Convolve 3 image above with gaussian filter
-        myfilter.gaussianGenerator(7, 1.5)
+        myfilter.gaussianGenerator(7, 4.0)
         Sx2 = myfilter.smoothenImage(Ix2)
         Sy2 = myfilter.smoothenImage(Iy2)
         Sxy = myfilter.smoothenImage(Ixy)

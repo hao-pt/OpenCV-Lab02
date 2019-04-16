@@ -96,7 +96,15 @@ class CFilter:
         blurImg = conv.convolution(blurImg)
         return blurImg
 
-    def gaussianGenerator(self, size, sigma):
+    def gaussianGenerator(self, size = 0, sigma = 0):
+        if size == 0 and sigma != 0:
+            # Calculate kernel size for gaussian blur base on sigma
+            size = 2 * math.ceil(2 * sigma) + 1
+
+        if size != 0 and sigma == 0:
+            # Calculate sigma base on kernel size
+            sigma = (size // 2) / 2
+
         # Separate gaussian into 2 direction: vertical & horizontal
         # Especially, both vertical & horizontal filter are symmetric
         # GaussX

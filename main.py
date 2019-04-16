@@ -9,8 +9,12 @@ from matplotlib import pyplot as plt
 import myImage
 import filter as flt
 import harris
+import sift
 
 def main():
+    #Measure time
+    e1 = cv2.getTickCount()
+
     # input image
     img = myImage.readImage("empire.jpg")
     # Grayscale image
@@ -21,9 +25,15 @@ def main():
     plt.title('Gray-scale image'), plt.xticks([]), plt.yticks([])
 
     # Call harris detector function
-    harris.detectByHarris(grayImg)
+    # harris.detectByHarris(grayImg)
     
+    # Declare sift obj
+    mysift = sift.CSift(grayImg)
+    mysift.detectBySift()
     
+    e2 = cv2.getTickCount()
+    time = (e2 - e1)/cv2.getTickFrequency()
+    print('Time: %.2f(s)' %(time))
 
     plt.show()
 
