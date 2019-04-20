@@ -35,3 +35,4 @@ b = np.array([[5, 3, -1], [-3, 10, 3]])
 c = np.array([a, b])
 print(c[1])
 
+print(max([1, 2, 3, -1, 5, 10]))
