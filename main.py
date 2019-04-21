@@ -10,27 +10,33 @@ import myImage
 import filter as flt
 import harris
 import sift
+import blob
 
 def main():
     #Measure time
     e1 = cv2.getTickCount()
 
-    # input image
-    img = myImage.readImage("empire.jpg")
-    # Grayscale image
-    grayImg = myImage.grayScale(img)
-
-    plt.figure(1)
-    plt.imshow(grayImg, cmap='gray', interpolation = 'bicubic')
-    plt.title('Gray-scale image'), plt.xticks([]), plt.yticks([])
+    # input gray image
+    grayImg = myImage.readImage(r"C:\Users\Tien Hao\Google Drive\Junior\TGMT\TH\DataSet\TestImages\02.jpg")
+    
+    # Convert img in range[0,1]
+    floatImg = grayImg / 255.0
 
     # Call harris detector function
-    # harris.detectByHarris(grayImg)
+    harris.detectByHarris(floatImg)
     
-    # Declare sift obj
-    mysift = sift.CSift(grayImg)
-    mysift.detectBySift()
+    # # Detect Blob used DoG
+    # # Declare sift obj
+    # mysift = sift.CSift(floatImg)
+    # mysift.detectBlobByDoG()
+    # mysift.plotBlob()
     
+    # # Detect Blob used LoG
+    # # Declare CBlob obj
+    # myblob = blob.CBlob()
+    # myblob.detectBlobByLoG(floatImg)
+    # myblob.plotBlob(floatImg)
+
     e2 = cv2.getTickCount()
     time = (e2 - e1)/cv2.getTickFrequency()
     print('Time: %.2f(s)' %(time))

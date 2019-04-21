@@ -1,8 +1,10 @@
 # Built-in libs
 import numpy as np
 import math
+import matplotlib.pyplot as plt
 # Built-out libs
 import filter as flt
+import blob
 
 # -----------------------Define some constants-----------------------
 # Use for keypoints localization
@@ -12,12 +14,12 @@ CURVATURE_THRESHOLD = 10
 NUM_BINS = 36
 
 class CSift:
-    def __init__(self, img = []):
+    def __init__(self, img = [], _no_octave = 4, _no_scale = 5):
         self.srcImg = img
         # Paper author choose no. octave = 4, no. scale = 5, k = sqrt(2)
-        self.no_octave = 4 # number of octave
-        self.no_scale = 5 # number of scale level per octave
-        self.no_extrema_images = 2 # Number of extrema image without topmost and botmost in dog images
+        self.no_octave = _no_octave # number of octave
+        self.no_scale = _no_scale # number of scale level per octave
+        self.no_extrema_images = self.no_scale // 2 # Number of extrema image without topmost and botmost in dog images
         # Constant value k
         self.k = np.sqrt(2)
 
@@ -45,7 +47,7 @@ class CSift:
     # Create scale-space table (sigma table)
     def create_scale_space_table(self):
         # Initial sigma
-        sigma = 1/2
+        sigma = 1.0
         # Define lambda expression to compute next_sigma in this current octave
         next_sigma = lambda k, sigma: k*sigma
         
@@ -53,7 +55,7 @@ class CSift:
         self.sigma_table = []
 
         # Compute first octave and scale levels
-        first_octave = [next_sigma(self.k , sigma)]
+        first_octave = [sigma]
         for j in range(1, self.no_scale):
             sigma = first_octave[j - 1]
             first_octave.append(next_sigma(self.k, sigma))
@@ -65,7 +67,7 @@ class CSift:
             self.sigma_table.append(ith_octave)
 
         self.sigma_table = np.array(self.sigma_table)
-        return self.sigma_table      
+        return self.sigma_table
 
     # Build scale-space pyramid generate all gaussian-blur image for each octave and DoG image
     def build_scale_space_pyramid(self):
@@ -92,21 +94,27 @@ class CSift:
         for i, octave in enumerate(self.layer_pyramid):
             ith_octave = []
             for j in range(1, self.no_scale):
+                dogImg = octave[j] - octave[j - 1]
+                # Squaring the response of blob to make respose strong positive to high contrast
+                dogImg = np.abs(dogImg)
                 # Append DoG image of ith octave into list 
-                ith_octave.append(octave[j] - octave[j - 1])
+                ith_octave.append(dogImg)
             DoG.append(ith_octave)
+
         # Store dog_pyramid
         self.dog_pyramid = DoG
 
-    # Find potential keypoints (Locate maxima/minima in DoG images)
-    def scale_space_extrema_detection(self):
+    # Find candidate keypoints
+    def find_candidate_keypoints(self):
         # 1. Create sigma table
         self.create_scale_space_table()
         
         # 2. Build scale-space
         self.build_scale_space_pyramid()
         
-        # 3. Locate maxima/minima in DoG images
+        # 3. Find candidate keypoints:
+        # Locate maxima/minima in DoG images
+        # Get rid of low contrast and edge
         '''
         One pixel in an image is compared with its 8 neighbours as well as 9 pixels in next scale 
         and 9 pixels in previous scales. 
@@ -137,70 +145,49 @@ class CSift:
                         if np.all(cur_img[x][y] >= cur_img[x + xidx[:-1], y + yidx[:-1]]) \
                                 and np.all(cur_img[x][y] >= prev_img[x + xidx, y + yidx]) \
                                 and np.all(cur_img[x][y] >= next_img[x + xidx, y + yidx]):
-                            self.keypoints.append([x, y, i, j]) # Store location: (x, y), ith octave and jth dog image
-                        
-                        # check minima
-                        elif np.all(cur_img[x][y] <= cur_img[x + xidx[:-1], y + yidx[:-1]]) \
-                                and np.all(cur_img[x][y] <= prev_img[x + xidx, y + yidx]) \
-                                and np.all(cur_img[x][y] <= next_img[x + xidx, y + yidx]):
-                            self.keypoints.append([x, y, i, j]) # Store location: (x, y), ith octave and jth dog image
+                            '''
+                            * Getting rid of low-contrast and edge keypoints
+                            * Rejection:
+                            - Low contrast: Threshold intensities (|D(x)| < 0.03 in term of range[0, 1]) then it is rejected. 
+                            - Lie on edge: Use concept similar with harris 
+                            but In SIFT, efficiency is increased by just calculating the ratio of these two eigenvalues.
+                                Tr(H)**2 / Det(H) < (r+1)**2 / r , where r = 10
+                            Which eliminates keypoints that have a ratio between the principal curvatures greater than 10.
+                            * Therefore, the remains is strong keypoints.
+                            '''
+                            # Check low constrast
+                            if cur_img[x][y] < CONTRAST_THRESHOLD:
+                                continue
+                            
+                            # Check edge
+                            # 2x2 Hessian matrix (H) computed at the location and scale of the keypoint:
+                            # Because i use x as vertical and y as horizontal, 
+                            # when computing derivative of x and y need to revert x, y synstax
+                            dxx = cur_img[x][y - 1] + cur_img[x][y + 1] - 2*cur_img[x][y]
+                            dyy = cur_img[x - 1][y] + cur_img[x + 1][y] - 2*cur_img[x][y]
+                            dxy = (cur_img[x - 1][y - 1] + cur_img[x + 1][y + 1] - cur_img[x - 1][y + 1] 
+                            - cur_img[x + 1][y - 1]) / 4.0
+
+                            # Compute trace and det of H
+                            trH = dxx + dyy
+                            detH = dxx*dyy - dxy**2
+
+                            # Compute curvature_ratio
+                            curvature_ratio = np.nan_to_num(trH**2 / detH)
+
+                            if curvature_ratio <= self.ratio_threshold:
+                                # Store location: (x, y), ith octave and jth dog image
+                                self.keypoints.append([x, y, i, j])
+
+
+                        # # check minima
+                        # elif np.all(cur_img[x][y] <= cur_img[x + xidx[:-1], y + yidx[:-1]]) \
+                        #         and np.all(cur_img[x][y] <= prev_img[x + xidx, y + yidx]) \
+                        #         and np.all(cur_img[x][y] <= next_img[x + xidx, y + yidx]):
+                        #     self.keypoints.append([x, y, i, j]) # Store location: (x, y), ith octave and jth dog image
         
         print(len(self.keypoints))
     
-    '''
-    * Getting rid of low-contrast and edge keypoints
-    * Rejection:
-    - Low contrast: Threshold intensities (|D(x)| < 0.03 in term of range[0, 1]) then it is rejected. 
-    - Lie on edge: Use concept similar with harris 
-      but In SIFT, efficiency is increased by just calculating the ratio of these two eigenvalues.
-          Tr(H)**2 / Det(H) < (r+1)**2 / r , where r = 10
-      Which eliminates keypoints that have a ratio between the principal curvatures greater than 10.
-    * Therefore, the remains is strong keypoints.
-    '''
-    def keypoints_localization(self):
-        n = len(self.keypoints)
-        i = 0
-        while i < n:
-            # Get position of feature point
-            x, y = self.keypoints[i][:2]
-            # Get octave and dog location
-            ioct = self.keypoints[i][2]
-            idog = self.keypoints[i][3]
-
-            # Get dog image
-            curImg = self.dog_pyramid[ioct][idog]
-
-            # Check low constrast
-            if math.fabs(curImg[x][y]) < CONTRAST_THRESHOLD:
-                self.keypoints.pop(i) # remove this keypoint
-                n = n - 1
-                continue
-
-            # Check edge
-            # 2x2 Hessian matrix (H) computed at the location and scale of the keypoint:
-            # Because i use x as vertical and y as horizontal, 
-            # when computing derivative of x and y need to revert x, y synstax
-            dxx = curImg[x][y - 1] + curImg[x][y + 1] - 2*curImg[x][y]
-            dyy = curImg[x - 1][y] + curImg[x + 1][y] - 2*curImg[x][y]
-            dxy = (curImg[x - 1][y - 1] + curImg[x + 1][y + 1] - curImg[x - 1][y + 1] - curImg[x + 1][y - 1]) / 4.0
-
-            # Compute trace and det of H
-            trH = dxx + dyy
-            detH = dxx*dyy - dxy**2
-
-            # Compute curvature_ratio
-            curvature_ratio = np.nan_to_num(trH**2 / detH)
-
-            if curvature_ratio > self.ratio_threshold:
-                self.keypoints.pop(i)
-                n = n - 1
-                continue
-            
-            i = i + 1
-
-        print(len(self.keypoints))
-
-
     def compute_magnitude_and_orientation(self):
         # Init magnitude and orientation array (Store all images over scale space of keypoints)
         # The scale of the keypoint is used to select the Gaussian smoothed image, L, with the closest scale
@@ -398,24 +385,37 @@ class CSift:
         # Store in class
         self.keypoints = keypoints
 
+    # Plot blob used matplotlib
+    def plotBlob(self):
+        fig, axes = plt.subplots()
+        
+        # Set title and show img
+        axes.set_title("Blob detector used Difference of Gaussian")
+        axes.imshow(self.srcImg, interpolation='nearest', cmap="gray")
 
+        for blob in self.keypoints:
+            # Get location and sigma of blob
+            x, y, zx, zy = blob
+            # Get sigma
+            sigma = self.sigma_table[zx][zy]
+            # Note: radious of blob = sigma * sqrt(2)
+            radious = sigma * self.k
+            circle = plt.Circle((y, x), radious, color='red', linewidth=1.5, fill=False)
+            axes.add_patch(circle) # Add circle to axis
 
+        # Turn off axis
+        axes.set_axis_off()
 
-
-                    
-                    
-
-            
-
-            
-
-
-                 
-
-                
-
-
-
+    # Blob detector used DoG
+    def detectBlobByDoG(self):
+        '''
+        There are 2 steps:
+            1. Find potential keypoints (Locate maxima/minima in DoG images)
+                In this case, i just locate maxima because i take absolute of the blob's respoonse 
+            2. Getting rid of low-contrast and edge keypoints'''
+        self.find_candidate_keypoints()
+        
+        
 
     # Sift detector
     def detectBySift(self):

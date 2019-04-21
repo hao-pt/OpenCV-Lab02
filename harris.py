@@ -93,17 +93,23 @@ def get_feature_points(Hessian, ratio = 0.1, minDist = 10):
 
     return [pointsX, pointsY]
 
-def plot_feature_points(feturePoints):
+def plot_feature_points(img, feturePoints):
+    # Show image
+    plt.figure(1)
+    plt.imshow(img, cmap='gray', interpolation = 'bicubic')
+    plt.title('Gray-scale image'), plt.xticks([]), plt.yticks([])
+
+    # Plot corners
     pX, pY = feturePoints
     # Note: Axes of plot and image is reverted
-    plt.plot(pY, pX, '*')
+    plt.plot(pY, pX, 'r*')
 
 def detectByHarris(img):
         # Declare filter object
         myfilter = flt.CFilter()
 
         # 1. Compute sobelX and sobelY derivatives
-        myfilter.gaussianGenerator(5, 1.0)
+        myfilter.gaussianGenerator(sigma = 1.0)
         Ix, Iy = myfilter.detectBySobel(img)
         
         # 2. Compute product of derivatives at every pixel
@@ -112,7 +118,7 @@ def detectByHarris(img):
         Ixy = Ix * Iy
 
         # 3. Compute Hessian matrix: Convolve 3 image above with gaussian filter
-        myfilter.gaussianGenerator(7, 4.0)
+        myfilter.gaussianGenerator(sigma = 2.5)
         Sx2 = myfilter.smoothenImage(Ix2)
         Sy2 = myfilter.smoothenImage(Iy2)
         Sxy = myfilter.smoothenImage(Ixy)
@@ -122,17 +128,16 @@ def detectByHarris(img):
         Hdet = Sx2 * Sy2 - Sxy ** 2 
         Htr = Sx2 + Sy2
         
-        # Hessian response function: R = Det(H) - k(Trace(H))^2
-        # Harris corner detector - Harris and Stephens (1988)
+        # # Hessian response function: R = Det(H) - k(Trace(H))^2
+        # # Harris corner detector - Harris and Stephens (1988)
         # k = 0.06
         # R = Hdet - k * (Htr ** 2)
 
-        # Harmonic mean - Brown, Szeliski, and Winder (2005)
-        # R = np.nan_to_num(Hdet/Htr**2)
-        # R = Htr**2 / Hdet
+        # # Shi & Tomashi corner detector - 1994
+        # R = (Sx2 + Sy2 - np.sqrt((Sx2-Sy2)**2 + 4*(Sxy**2)))/2
 
-        # Shi & Tomashi corner detector - 1994
-        R = np.minimum(Sx2, Sy2) 
+        # Harmonic mean - Brown, Szeliski, and Winder (2005)
+        R = np.nan_to_num(Hdet/Htr)
 
         # 5. Threshold on value of R. Compute nonmax suppression
         # Find local maxima above a certain threshold and report them as detected feature
@@ -159,4 +164,4 @@ def detectByHarris(img):
         featurePoints = get_feature_points(R)
         
         # Plot these feature points overlaid origin img
-        plot_feature_points(featurePoints)
+        plot_feature_points(img, featurePoints)

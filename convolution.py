@@ -20,7 +20,7 @@ class CMyConvolution:
         return self.kernel[::-1, ::-1]
 
     #Convolution of img and kernel/mask
-    def convolution(self, img): 
+    def convolution(self, img, isFloat = False): 
         #Padding de output image keep the same size as input image
         #Tinh padding them vao
         pV = (self.kH - 1) // 2
@@ -45,16 +45,20 @@ class CMyConvolution:
 
                 #Element-wise multiplication of roi & kernel then get the sum of it 
                 # to get the convolve output
-                k = abs((roi * flipKernel).sum())
-
+                if isFloat == False:
+                    k = abs((roi * flipKernel).sum())
+                else:
+                    k = (roi * flipKernel).sum()
                 #Assign this convole output to pixel (y, x) of output image
                 #Note: Ouput size remain the same as the original img
                 #Use method: .itemset of numpy to speed up modify pixel in image 
                 outImg.itemset((y - pV, x - pH), k)
         
-        # # Normalize the output image to be in range [0, 255] accurately_
-        # # _when it's presented in float dtype [0, 1] called 'shrinking image'
-        outImg = exposure.rescale_intensity(outImg, out_range = (0, 1))
-        # # Convert dtype of image back to uint8
-        outImg = (outImg * 255).astype(np.uint8)
+        if isFloat == False:
+            # # Normalize the output image to be in range [0, 255] accurately_
+            # # _when it's presented in float dtype [0, 1] called 'shrinking image'
+            outImg = exposure.rescale_intensity(outImg, out_range = (0, 1))
+            # # Convert dtype of image back to uint8
+            outImg = (outImg * 255).astype(np.uint8)
+
         return outImg

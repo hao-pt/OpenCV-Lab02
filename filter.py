@@ -9,6 +9,25 @@ import scipy.integrate as sci_int
 # Built-out lib
 import convolution as myconv
 
+def LoG_function(sigma):
+    ksize = 2 * math.ceil(3 * sigma) + 1 # Kernel size
+    radious = ksize // 2
+    # Generate orthogonal vertical and horizontal grid
+    x, y = np.ogrid[-radious:radious+1, -radious:radious+1]
+
+    # Need to normalize LoG by multiply LoG function with sigma^2 to reduce the effect of sigma
+    # Because When increase sigma, the response of blob will decrease.
+    # Note: Need a little bit transform LoG function to get good result
+    ex = np.exp(-(x**2) / (2.0*sigma*sigma))
+    ey = np.exp(-(y**2) / (2.0*sigma*sigma))
+    
+    # LoG filter (blob filter)
+    # Note: x.shape (2*radious + 1, 1), y.shape (1, 2*radious + 1)
+    # So it use broadcast in numpy to compute (x*x + y*y) and ex*ey
+    LoG = (-2*sigma**2 + (x*x + y*y)) * (ex*ey) * (1.0 / (2*np.pi*sigma**4))
+
+    return LoG
+
 
 def integrand(x, sigma):
     # Calculate gaussian kernel X by gaussian function
@@ -53,8 +72,6 @@ def thresholdSeeking(img, sigma = 0.033):
     return lowThreshold, highThreshold
 
 
-
-
 class CFilter:
     def __init__(self):
         #Gx: vertical
@@ -84,6 +101,7 @@ class CFilter:
                                     [1, 2, -16, 2, 1],
                                     [0, 1, 2, 1, 0],
                                     [0, 0, 1, 0, 0]], np.int)
+        self.logKernel = []
 
 
     def smoothenImage(self, img):
@@ -91,15 +109,15 @@ class CFilter:
         conv = myconv.CMyConvolution()
         # Convolve 2 times to reduce time complexity
         conv.setKernel(self.gaussKernelY)
-        blurImg = conv.convolution(img)
+        blurImg = conv.convolution(img, isFloat = True)
         conv.setKernel(self.gaussKernelX)
-        blurImg = conv.convolution(blurImg)
+        blurImg = conv.convolution(blurImg, isFloat = True)
         return blurImg
 
     def gaussianGenerator(self, size = 0, sigma = 0):
         if size == 0 and sigma != 0:
             # Calculate kernel size for gaussian blur base on sigma
-            size = 2 * math.ceil(2 * sigma) + 1
+            size = 2 * math.ceil(3 * sigma) + 1
 
         if size != 0 and sigma == 0:
             # Calculate sigma base on kernel size
@@ -124,6 +142,17 @@ class CFilter:
 
         return gaussX, gaussY
 
+    def LoG_generator(self, sigma):
+        self.logKernel = LoG_function(sigma)
+    
+    def detectByLoG(self, img):
+        # Declare CMyConvolution() object
+        conv = myconv.CMyConvolution()
+        # Convole image with LoG filter
+        conv.setKernel(self.logKernel)
+        logImg = conv.convolution(img, isFloat = True)
+        return logImg
+
     def detectBySobel(self, img):
         # Declare CMyConvolution() object
         conv = myconv.CMyConvolution()
@@ -131,10 +160,10 @@ class CFilter:
         img = self.smoothenImage(img)
         # Convole with vertical kernel
         conv.setKernel(self.sobelKernel['Gx'])
-        verticalImage = conv.convolution(img)
+        verticalImage = conv.convolution(img, isFloat = True)
         # Convole with horizontal kernel
         conv.setKernel(self.sobelKernel['Gy'])
-        horizontalImage = conv.convolution(img)
+        horizontalImage = conv.convolution(img, isFloat = True)
         
         return (verticalImage, horizontalImage)
 

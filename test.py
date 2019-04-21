@@ -4,35 +4,27 @@ import math
 import cv2
 from matplotlib import pyplot as plt
 
-# def plot_feature_points(feturePoints):
-#     pX, pY = feturePoints
-#     # Note: Axes of plot and image is reverted
-#     plt.plot(pY, pX, '*')
+def plot_feature_points(img, feturePoints):
+    # Show image
+    plt.figure(1)
+    plt.imshow(img, cmap='gray', interpolation = 'bicubic')
+    plt.title('Gray-scale image'), plt.xticks([]), plt.yticks([])
+    # Plot feature points
+    pX, pY = feturePoints
+    # Note: Axes of plot and image is reverted
+    plt.plot(pY, pX, '*')
 
-# # Read img
-# img = cv2.imread("checkerboard.png")
-# # Gray-scale image
-# gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+# Read img
+grayImg = cv2.imread(r"C:\Users\Tien Hao\Google Drive\Junior\TGMT\TH\DataSet\TestImages\02.jpg", cv2.IMREAD_GRAYSCALE)
 
-# # Convert type as np.float
-# grayf = np.float32(gray)
-# # Call cv2.cornerHarris function
-# dst = cv2.cornerHarris(grayf,2,3,0.04)
+# Convert type as np.float
+grayf = np.float32(grayImg)
+# Call cv2.cornerHarris function
+dst = cv2.cornerHarris(grayf,2,3,0.04)
 
-# # Threshold image
-# x, y = np.nonzero(dst > 0.1*dst.max())
+# Threshold image
+x, y = np.nonzero(dst > 0.05*dst.max())
 
-# plt.figure(1)
-# plt.imshow(gray, cmap='gray', interpolation = 'bicubic')
-# plt.title('Corner detection'), plt.xticks([]), plt.yticks([])
+plot_feature_points(grayImg, (x, y))
 
-# plot_feature_points((x, y))
-
-# plt.show()
-
-a = np.array([[1, 2, 3], [5, 3, 3]])
-b = np.array([[5, 3, -1], [-3, 10, 3]])
-c = np.array([a, b])
-print(c[1])
-
-print(max([1, 2, 3, -1, 5, 10]))
+plt.show()
