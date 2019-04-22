@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 import myImage
 import filter as flt
 import harris
-import sift
+import mysift
 import blob
 
 def main():
@@ -33,14 +33,14 @@ def main():
 
     # # Detect Blob used DoG
     # # Declare sift obj
-    # mysift = sift.CSift(floatImg)
-    # mysift.detectBlobByDoG()
-    # mysift.plotBlob()
+    # mySift = sift.CSift(floatImg)
+    # mySift.detectBlobByDoG()
+    # mySift.plotBlob()
     
     # Sift detector
     # Declare sift obj
-    mysift = sift.CSift(floatImg)
-    mysift.detectBySift()
+    mySift = mysift.CSift(floatImg)
+    mySift.detectBySift()
 
     e2 = cv2.getTickCount()
     time = (e2 - e1)/cv2.getTickFrequency()
