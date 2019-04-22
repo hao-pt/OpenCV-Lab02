@@ -97,14 +97,14 @@ def plot_feature_points(img, feturePoints):
     # Show image
     plt.figure(1)
     plt.imshow(img, cmap='gray', interpolation = 'bicubic')
-    plt.title('Gray-scale image'), plt.xticks([]), plt.yticks([])
+    plt.title('Corners'), plt.xticks([]), plt.yticks([])
 
     # Plot corners
     pX, pY = feturePoints
     # Note: Axes of plot and image is reverted
     plt.plot(pY, pX, 'r*')
 
-def detectByHarris(img):
+def detectByHarris(img, _ratio = 0.1):
     # Declare filter object
     myfilter = flt.CFilter()
 
@@ -161,7 +161,7 @@ def detectByHarris(img):
     # plot_feature_points(np.nonzero(supImg == 255))
     
     # Find good feature points
-    featurePoints = get_feature_points(R)
+    featurePoints = get_feature_points(R, ratio = _ratio)
     
     # Plot these feature points overlaid origin img
     plot_feature_points(img, featurePoints)
