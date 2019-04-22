@@ -22,8 +22,8 @@ def main():
     # Convert img in range[0,1]
     floatImg = grayImg / 255.0
 
-    # Call harris detector function
-    harris.detectByHarris(floatImg)
+    # # Call harris detector function
+    # harris.detectByHarris(floatImg)
     
     # # Detect Blob used LoG
     # # Declare CBlob obj
@@ -37,10 +37,10 @@ def main():
     # mysift.detectBlobByDoG()
     # mysift.plotBlob()
     
-    # # Sift detector
-    # # Declare sift obj
-    # mysift = sift.CSift(floatImg)
-    # mysift.detectBySift()
+    # Sift detector
+    # Declare sift obj
+    mysift = sift.CSift(floatImg)
+    mysift.detectBySift()
 
     e2 = cv2.getTickCount()
     time = (e2 - e1)/cv2.getTickFrequency()

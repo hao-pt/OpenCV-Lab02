@@ -263,6 +263,74 @@ class SIFT:
         
         return feature_vector
     
+    # Find all magnitude and orientation of a certain keypoint
+    def aux_find_peaks(self, hist_ori):
+        # Find max_peak
+        max_peak = np.amax(hist_ori)
+
+        # Find all magnitude and orientation of this keypoint
+        ori = []
+        mag = []
+
+        # Find all peak above 80% of max_peak
+        z_indices = np.nonzero(hist_ori > (max_peak*0.8))
+        
+        # Traverse through peaks to find dominent orientation
+        for z in z_indices:
+            # fit parabola to the 3 histogram values closest to each peak
+            # To find maximum peak by taking this equation: y = ax^2 + bx + c
+            # Now, (x2, y2) is the peak then (x1, y1), (x3, y3) are left and right bin
+            
+            # check value for X and Y
+            # If peak is 1st bin, (x1, y1) will equal the right most bin (NUM_BINS - 1, hist_ori[NUM_BINS - 1]) 
+            # and vice versa
+            z = int(z)
+            if z == 0:
+                x_values = np.array([NUM_BINS - 1, z, z + 1])
+                y_values = np.array([hist_ori[NUM_BINS - 1], hist_ori[z], hist_ori[z + 1]])
+            elif z == NUM_BINS - 1:
+                x_values = np.array([z - 1, z, 0])
+                y_values = np.array([hist_ori[z - 1], hist_ori[z], hist_ori[0]])
+            else:
+                x_values = np.array([z - 1, z, z + 1])
+                y_values = np.array([hist_ori[z - 1], hist_ori[z], hist_ori[z + 1]])
+            
+            # We have y = ax^2 + bx + c
+            # And we have 3 points (x1, y1), (x2, y2), (x3, y3)
+            # y1 = ax1^2 + bx1 + c
+            # y2 = ax2^2 + bx2 + c
+            # y3 = ax3^2 + bx3 + c
+            # Vectorize this equation, we have Y = Xw
+            # Y = [y1, y2, y3]'
+            # X = [[x1^2, x1, 1]', [x2^2, x2, 1]', [x3^2, x3, 1]']
+            # So, w = inv(X)Y where w = [a, b, c]'
+            X = np.array([
+                [x_values[0]**2, x_values[1]**2, x_values[2]**2], 
+                [x_values[0], x_values[1], x_values[2]],
+                [1, 1, 1]])
+            Y = y_values.T
+            w = (np.linalg.pinv(X)).dot(Y)
+
+            # Now, take 1st derivative to find maximum peak: 0 = 2ax + b -> x = -b/2a
+            x0 = -w[1] / (2*w[0])
+
+            while x0 > NUM_BINS:
+                x0 -= NUM_BINS
+            while x0 < 0:
+                x0 += NUM_BINS
+
+            # Convert to degree
+            x0 = x0 * (2*math.pi / NUM_BINS)
+
+            # Turn x0 back to range[-pi, pi]
+            x0 -= math.pi
+
+            # Store this dominent orientation
+            ori.append(x0)
+            mag.append(hist_ori[z])
+        
+        return mag, ori
+
     def orientationAssignmentAndKeypointDescription(self):
         listOfKeypoints = self.findApproxKeypoints(10,10)
         self.calGradientMagAndOrient_forPyramidL()
@@ -297,11 +365,20 @@ class SIFT:
                        roi_m = np.multiply(roi_m,gaussianKernel_2D)
                        # count 36 bins histogram
                        bins_counter = self.aux_countingBins2(roi_m,roi_theta)
-                       maxIndex = np.where(bins_counter == np.amax(bins_counter)) # get index of max value
-                       # choose DOMINANT DIRECTION: (maxIndex+1)*10-5 --MODDED--
-                       # real: fit parabola to 3 nearest bin
-                       dominant = (maxIndex+1)*10 - 5
-                       
+
+                        ''' Vu Quoc Huy
+                        maxIndex = np.where(bins_counter == np.amax(bins_counter)) # get index of max value
+                        # choose DOMINANT DIRECTION: (maxIndex+1)*10-5 --MODDED--
+                        # real: fit parabola to 3 nearest bin
+                        dominant = (maxIndex+1)*10 - 5
+                        '''
+
+                        # Phung Tien Hao
+                        # Find all magnitude and orientation of this keypoint
+                        magnitude, orienation = self.aux.aux_find_peaks(bins_counter)
+                        # Note orientation may more than one and it is radian angle
+                        dominant = orienation
+
                        #================STEP 4: KEYPOINT DESCRIPTOR=======================================
                        feature_vector = self.keypointDescriptor(k_y,k_x,chosen_m,chosen_theta,dominant)
                        listOfKeypoints[o][s][k] = (k_y,k_x,dominant,feature_vector)
@@ -313,3 +390,4 @@ class SIFT:
        # 0, 1.25, 2.5, 3.75, 5, 6.25, 7.5, 8.75, 10 
        # lst = [[[1,3,2],[4,3],[1],[3,2]],[[3],[3,0,3,3]],[[1],[2],[3]]]                 
        # [k_y-7:k_y+9, k_x-7:k_x+9]
+    
