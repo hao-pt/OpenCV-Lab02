@@ -105,63 +105,63 @@ def plot_feature_points(img, feturePoints):
     plt.plot(pY, pX, 'r*')
 
 def detectByHarris(img):
-        # Declare filter object
-        myfilter = flt.CFilter()
+    # Declare filter object
+    myfilter = flt.CFilter()
 
-        # 1. Compute sobelX and sobelY derivatives
-        myfilter.gaussianGenerator(sigma = 1.0)
-        Ix, Iy = myfilter.detectBySobel(img)
-        
-        # 2. Compute product of derivatives at every pixel
-        Ix2 = Ix * Ix
-        Iy2 = Iy * Iy
-        Ixy = Ix * Iy
+    # 1. Compute sobelX and sobelY derivatives
+    myfilter.gaussianGenerator(sigma = 1.0)
+    Ix, Iy = myfilter.detectBySobel(img)
+    
+    # 2. Compute product of derivatives at every pixel
+    Ix2 = Ix * Ix
+    Iy2 = Iy * Iy
+    Ixy = Ix * Iy
 
-        # 3. Compute Hessian matrix: Convolve 3 image above with gaussian filter
-        myfilter.gaussianGenerator(sigma = 2.5)
-        Sx2 = myfilter.smoothenImage(Ix2)
-        Sy2 = myfilter.smoothenImage(Iy2)
-        Sxy = myfilter.smoothenImage(Ixy)
+    # 3. Compute Hessian matrix: Convolve 3 image above with gaussian filter
+    myfilter.gaussianGenerator(sigma = 2.5)
+    Sx2 = myfilter.smoothenImage(Ix2)
+    Sy2 = myfilter.smoothenImage(Iy2)
+    Sxy = myfilter.smoothenImage(Ixy)
 
-        # 4. Compute the response of detector at each pixel
-        # Compute Det(H), Trace(H)
-        Hdet = Sx2 * Sy2 - Sxy ** 2 
-        Htr = Sx2 + Sy2
-        
-        # # Hessian response function: R = Det(H) - k(Trace(H))^2
-        # # Harris corner detector - Harris and Stephens (1988)
-        # k = 0.06
-        # R = Hdet - k * (Htr ** 2)
+    # 4. Compute the response of detector at each pixel
+    # Compute Det(H), Trace(H)
+    Hdet = Sx2 * Sy2 - Sxy ** 2 
+    Htr = Sx2 + Sy2
+    
+    # # Hessian response function: R = Det(H) - k(Trace(H))^2
+    # # Harris corner detector - Harris and Stephens (1988)
+    # k = 0.06
+    # R = Hdet - k * (Htr ** 2)
 
-        # # Shi & Tomashi corner detector - 1994
-        # R = (Sx2 + Sy2 - np.sqrt((Sx2-Sy2)**2 + 4*(Sxy**2)))/2
+    # # Shi & Tomashi corner detector - 1994
+    # R = (Sx2 + Sy2 - np.sqrt((Sx2-Sy2)**2 + 4*(Sxy**2)))/2
 
-        # Harmonic mean - Brown, Szeliski, and Winder (2005)
-        R = np.nan_to_num(Hdet/Htr)
+    # Harmonic mean - Brown, Szeliski, and Winder (2005)
+    R = np.nan_to_num(Hdet/Htr)
 
-        # 5. Threshold on value of R. Compute nonmax suppression
-        # Find local maxima above a certain threshold and report them as detected feature
-        # point locations.
+    # 5. Threshold on value of R. Compute nonmax suppression
+    # Find local maxima above a certain threshold and report them as detected feature
+    # point locations.
 
-        # plt.figure(2)
-        # plt.imshow(R, cmap='gray', interpolation = 'bicubic')
-        # plt.title('Response'), plt.xticks([]), plt.yticks([])
+    # plt.figure(2)
+    # plt.imshow(R, cmap='gray', interpolation = 'bicubic')
+    # plt.title('Response'), plt.xticks([]), plt.yticks([])
 
-        # thresholdImg = thresholding(R)
-        # plt.figure(4)
-        # plt.imshow(thresholdImg, cmap='gray', interpolation = 'bicubic')
-        # plt.title('Threshold'), plt.xticks([]), plt.yticks([])
+    # thresholdImg = thresholding(R)
+    # plt.figure(4)
+    # plt.imshow(thresholdImg, cmap='gray', interpolation = 'bicubic')
+    # plt.title('Threshold'), plt.xticks([]), plt.yticks([])
 
-        # supImg = Non_maximum_suppression(thresholdImg)
-        # plt.figure(3)
-        # plt.imshow(supImg, cmap='gray', interpolation = 'bicubic')
-        # plt.title('Suppression'), plt.xticks([]), plt.yticks([])
+    # supImg = Non_maximum_suppression(thresholdImg)
+    # plt.figure(3)
+    # plt.imshow(supImg, cmap='gray', interpolation = 'bicubic')
+    # plt.title('Suppression'), plt.xticks([]), plt.yticks([])
 
-        # plt.figure(1)
-        # plot_feature_points(np.nonzero(supImg == 255))
-        
-        # Find good feature points
-        featurePoints = get_feature_points(R)
-        
-        # Plot these feature points overlaid origin img
-        plot_feature_points(img, featurePoints)
+    # plt.figure(1)
+    # plot_feature_points(np.nonzero(supImg == 255))
+    
+    # Find good feature points
+    featurePoints = get_feature_points(R)
+    
+    # Plot these feature points overlaid origin img
+    plot_feature_points(img, featurePoints)

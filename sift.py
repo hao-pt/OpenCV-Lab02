@@ -179,13 +179,6 @@ class CSift:
                                 # Store location: (x, y), ith octave and jth dog image
                                 self.keypoints.append([x, y, i, j])
 
-
-                        # # check minima
-                        # elif np.all(cur_img[x][y] <= cur_img[x + xidx[:-1], y + yidx[:-1]]) \
-                        #         and np.all(cur_img[x][y] <= prev_img[x + xidx, y + yidx]) \
-                        #         and np.all(cur_img[x][y] <= next_img[x + xidx, y + yidx]):
-                        #     self.keypoints.append([x, y, i, j]) # Store location: (x, y), ith octave and jth dog image
-        
         print(len(self.keypoints))
     
     def compute_magnitude_and_orientation(self):
@@ -264,8 +257,6 @@ class CSift:
             maximum bin of 3 closest bin
         '''
         
-        print(self.sigma_table)
-
         degreePerBin = 360 / NUM_BINS # Each bin is 10 degree
 
         keypoints = [] # List to store keypoint info after assigning orientation
@@ -299,10 +290,10 @@ class CSift:
             iH, iW = oriImg.shape
 
             # Init histogram orientation with 36 bins
-            hist_ori = [0.0 for _ in range(NUM_BINS)]
+            hist_ori = np.zeros(NUM_BINS)
 
-            # Go through all region around keypoint called "Small region around each keypoint"
-            # To build histogram with 36 bins
+            #Go through all region around keypoint called "Small region around each keypoint"
+            #To build histogram with 36 bins
             for ix in range(-ksize + x, ksize + x + 1):
                 for iy in range(-ksize + y, ksize + y + 1):
                     # Make sure (ix, iy) dont out of range
@@ -316,67 +307,95 @@ class CSift:
                     # Count it by weighted image and push to correspondent bin
                     hist_ori[int(sampleOri // degreePerBin)] += weightedImg[ix][iy]
             
+            # startX = -ksize + x if (-ksize + x) >= 0 else 0
+            # endX = ksize + x + 1 if (ksize + x + 1) <= iH else iH
+            # startY = -ksize + y if (-ksize + y) >= 0 else 0
+            # endY = ksize + y + 1 if (ksize + y + 1) <= iW else iW
+            
+            # # Take the region of interest for oriImg
+            # roiOriImg = oriImg[startX:endX, startY:endY]
+            # # Take the region of interest for weightedImg
+            # roiWeightedImg = weightedImg[startX:endX, startY:endY]
+
+            # # Turn orientation in range [0, 2pi]
+            # sampleOri = roiOriImg + math.pi
+            # # Convert to degree
+            # sampleOri = sampleOri * 180/math.pi
+            
+            # # Flatten sampleOri into 1-d array
+            # bin_list = np.ravel(sampleOri // degreePerBin).astype(int)
+            # # Flatten weighted image into 1-d array
+            # flatWeighted = roiWeightedImg.ravel()
+            # # Count it by weighted image and push to correspondent bin
+            # for i, b in enumerate(bin_list):
+            #     hist_ori[b] = flatWeighted[i]
+            
+            # print(hist_ori)
+
             # Find max_peak
-            max_peak = max(hist_ori)
+            max_peak = np.amax(hist_ori)
 
             # Find all magnitude and orientation of this keypoint
             ori = []
             mag = []
-            # Traverse through each bin to find dominent orientation
-            for z in range(len(hist_ori)):
-                # If peak at z-th above 80% of max_peak
-                if hist_ori[z] > max_peak * 0.8:
-                    # fit parabola to the 3 histogram values closest to each peak
-                    # To find maximum peak by taking this equation: y = ax^2 + bx + c
-                    # Now, (x2, y2) is the peak then (x1, y1), (x3, y3) are left and right bin
-                    
-                    # check value for X and Y
-                    # If peak is 1st bin, (x1, y1) will equal the right most bin (NUM_BINS - 1, hist_ori[NUM_BINS - 1]) 
-                    # and vice versa
-                    if z == 0:
-                        x_values = np.array([NUM_BINS - 1, z, z + 1])
-                        y_values = np.array([hist_ori[NUM_BINS - 1], hist_ori[z], hist_ori[z + 1]])
-                    elif z == NUM_BINS - 1:
-                        x_values = np.array([z - 1, z, 0])
-                        y_values = np.array([hist_ori[z - 1], hist_ori[z], hist_ori[0]])
-                    else:
-                        x_values = np.array([z - 1, z, z + 1])
-                        y_values = np.array([hist_ori[z - 1], hist_ori[z], hist_ori[z + 1]])
-                    
-                    # We have y = ax^2 + bx + c
-                    # And we have 3 points (x1, y1), (x2, y2), (x3, y3)
-                    # y1 = ax1^2 + bx1 + c
-                    # y2 = ax2^2 + bx2 + c
-                    # y3 = ax3^2 + bx3 + c
-                    # Vectorize this equation, we have Y = Xw
-                    # Y = [y1, y2, y3]'
-                    # X = [[x1^2, x1, 1]', [x2^2, x2, 1]', [x3^2, x3, 1]']
-                    # So, w = inv(X)Y where w = [a, b, c]'
-                    X = np.array([
-                        [x_values[0]**2, x_values[1]**2, x_values[2]**2], 
-                        [x_values[0], x_values[1], x_values[2]],
-                        [1, 1, 1]])
-                    Y = y_values.T
-                    w = (np.linalg.pinv(X)).dot(Y)
 
-                    # Now, take 1st derivative to find maximum peak: 0 = 2ax + b -> x = -b/2a
-                    x0 = -w[1] / (2*w[0])
-
-                    while x0 > NUM_BINS:
-                        x0 -= NUM_BINS
-                    while x0 < 0:
-                        x0 += NUM_BINS
-
-                    # Convert to degree
-                    x0 = x0 * (2*math.pi / NUM_BINS)
-
-                    # Turn x0 back to range[-pi, pi]
-                    x0 -= math.pi
-
-                    # Store this dominent orientation
-                    ori.append(x0)
-                    mag.append(hist_ori[z])
+            # Find all peak above 80% of max_peak
+            z_indices = np.nonzero(hist_ori > (max_peak*0.8))
             
+            # Traverse through peaks to find dominent orientation
+            for z in z_indices:
+                # fit parabola to the 3 histogram values closest to each peak
+                # To find maximum peak by taking this equation: y = ax^2 + bx + c
+                # Now, (x2, y2) is the peak then (x1, y1), (x3, y3) are left and right bin
+                
+                # check value for X and Y
+                # If peak is 1st bin, (x1, y1) will equal the right most bin (NUM_BINS - 1, hist_ori[NUM_BINS - 1]) 
+                # and vice versa
+                z = int(z)
+                if z == 0:
+                    x_values = np.array([NUM_BINS - 1, z, z + 1])
+                    y_values = np.array([hist_ori[NUM_BINS - 1], hist_ori[z], hist_ori[z + 1]])
+                elif z == NUM_BINS - 1:
+                    x_values = np.array([z - 1, z, 0])
+                    y_values = np.array([hist_ori[z - 1], hist_ori[z], hist_ori[0]])
+                else:
+                    x_values = np.array([z - 1, z, z + 1])
+                    y_values = np.array([hist_ori[z - 1], hist_ori[z], hist_ori[z + 1]])
+                
+                # We have y = ax^2 + bx + c
+                # And we have 3 points (x1, y1), (x2, y2), (x3, y3)
+                # y1 = ax1^2 + bx1 + c
+                # y2 = ax2^2 + bx2 + c
+                # y3 = ax3^2 + bx3 + c
+                # Vectorize this equation, we have Y = Xw
+                # Y = [y1, y2, y3]'
+                # X = [[x1^2, x1, 1]', [x2^2, x2, 1]', [x3^2, x3, 1]']
+                # So, w = inv(X)Y where w = [a, b, c]'
+                X = np.array([
+                    [x_values[0]**2, x_values[1]**2, x_values[2]**2], 
+                    [x_values[0], x_values[1], x_values[2]],
+                    [1, 1, 1]])
+                Y = y_values.T
+                w = (np.linalg.pinv(X)).dot(Y)
+
+                # Now, take 1st derivative to find maximum peak: 0 = 2ax + b -> x = -b/2a
+                x0 = -w[1] / (2*w[0])
+
+                while x0 > NUM_BINS:
+                    x0 -= NUM_BINS
+                while x0 < 0:
+                    x0 += NUM_BINS
+
+                # Convert to degree
+                x0 = x0 * (2*math.pi / NUM_BINS)
+
+                # Turn x0 back to range[-pi, pi]
+                x0 -= math.pi
+
+                # Store this dominent orientation
+                ori.append(x0)
+                mag.append(hist_ori[z])
+        
             # Save this keypoint with multiple orientations and magnitudes at the same location (x, y)
             keypoints.append([x, y, ori, mag, ii, jj])
 
@@ -416,12 +435,67 @@ class CSift:
         self.find_candidate_keypoints()
         
         
+    def read_features(self, filename = ""):
+        '''
+        Read features properties from file
+        Each row contain first 4 values - location (coordinates, scale, dominent angle) 
+        and followed by 128 values of corresponding descriptor 
+        '''
+        # Read feature properties with numpy loadtxt
+        # Each row present for 1 feature
+        features = np.loadtxt(filename)
+        # Return locations and descriptors
+        return features[:,:4], features[:,4:]
+
+    def write_features(self, filename, locations, descriptors):
+        """Save features location and descriptor into file"""
+        np.savetxt(filename, np.hstack(locations, descriptors))
+
+    def plot_features(self, img, locations, isDrawRichKeypoints = True):
+        '''
+        isDrawRichKeypoints: default True
+        Use for drawing keypoints with size and orientation and vice versa.
+        '''
+        # Draw keypoint with size and orientation
+        if isDrawRichKeypoints:
+            kpImg = cv2.drawKeypoints(img, locations, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        else:
+            kpImg = cv2.drawKeypoints(img, locations, color = (0,0,255)) # Keypoints are drawn with red color
+        
+        # Show image and keypoints
+        plt.figure()
+        plt.imshow(kpImg, cmap='gray', interpolation = 'bicubic')
+        plt.title('Sift keypoints'), plt.xticks([]), plt.yticks([])
+        
+        # Save image
+        # cv2.imwrite('sift_keypoints.jpg',img)
+
+    def draw_matches(self, train_img, train_locations, query_img, query_locations, matches):
+        '''
+        Locations include: coordinates (x, y), scale and angle
+        matches: are number of matched keypoints between train_img and query_img
+        '''
+        # flags = 2: Single keypoints will not be drawn.
+        matchedImg = cv2.drawMatches(train_img, train_locations, query_img, query_locations, matches, flags = 2)
+
+        # Show image with matching points
+        plt.title('Matching Points between 2 images')
+        plt.imshow(matchedImg)
+        plt.show()
+
+        # Print the number of matching keypoints between 2 images
+        print("The number of matching keypoints between 2 images are %d." %len(matches))
 
     # Sift detector
     def detectBySift(self):
-        # 1. Find potential keypoints (Locate maxima/minima in DoG images)
-        self.scale_space_extrema_detection()
-        # 2. Getting rid of low-contrast and edge keypoints
-        self.keypoints_localization()
-        # 3. Assign an orientation to each keypoints. This is invariant to rotation
+
+        '''
+        1. Find candidate keypoints
+        There are 2 steps:
+            1. Find potential keypoints (Locate maxima/minima in DoG images)
+                In this case, i just locate maxima because i take absolute of the blob's respoonse 
+            2. Getting rid of low-contrast and edge keypoints'''
+        self.find_candidate_keypoints()
+        # 2. Assign an orientation to each keypoints. This is invariant to rotation
         self.assign_orientation()
+

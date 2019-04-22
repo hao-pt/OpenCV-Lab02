@@ -17,7 +17,7 @@ def main():
     e1 = cv2.getTickCount()
 
     # input gray image
-    grayImg = myImage.readImage(r"C:\Users\Tien Hao\Google Drive\Junior\TGMT\TH\DataSet\TestImages\02.jpg")
+    grayImg = myImage.readImage("empire.jpg")
     
     # Convert img in range[0,1]
     floatImg = grayImg / 255.0
@@ -25,17 +25,22 @@ def main():
     # Call harris detector function
     harris.detectByHarris(floatImg)
     
+    # # Detect Blob used LoG
+    # # Declare CBlob obj
+    # myblob = blob.CBlob()
+    # myblob.detectBlobByLoG(floatImg)
+    # myblob.plotBlob(floatImg)
+
     # # Detect Blob used DoG
     # # Declare sift obj
     # mysift = sift.CSift(floatImg)
     # mysift.detectBlobByDoG()
     # mysift.plotBlob()
     
-    # # Detect Blob used LoG
-    # # Declare CBlob obj
-    # myblob = blob.CBlob()
-    # myblob.detectBlobByLoG(floatImg)
-    # myblob.plotBlob(floatImg)
+    # # Sift detector
+    # # Declare sift obj
+    # mysift = sift.CSift(floatImg)
+    # mysift.detectBySift()
 
     e2 = cv2.getTickCount()
     time = (e2 - e1)/cv2.getTickFrequency()
