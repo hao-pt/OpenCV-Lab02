@@ -12,6 +12,7 @@ import filter as flt
 import harris
 import mysift
 import blob
+import SIFT2
 
 
 #Instatiate ArgumentParser() obj and parse argument
@@ -51,7 +52,7 @@ def main(args):
     elif code == 4:
         # Sift detector
         # Declare sift obj
-        mySift = mysift.CSift(floatImg)
+        mySift = SIFT2.SIFT(floatImg)
         mySift.detectBySift()
 
     e2 = cv2.getTickCount()

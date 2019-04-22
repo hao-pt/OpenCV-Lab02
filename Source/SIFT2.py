@@ -8,6 +8,8 @@ import numpy as np
 import cv2
 from numpy import linalg as LA
 import math
+from sklearn.preprocessing import normalize
+from matplotlib import pyplot as plt
 
 class SIFT:
     def __init__(self,_img,_kernelSize,_sigma,_k,_numsOfScales,_numsOfOctaves):
@@ -34,8 +36,8 @@ class SIFT:
         #listOfOctaves = [] ## Make it to be a instance variable of this class
         sigma = self.sigma
         for i in range(self.numsOfOctaves):
-            resizedImg = cv2.resize(self.img, (0,0), fx=pow(0.5,i), fy=pow(0.5,i))
-            octave = self.createImgs_AtOctave(resizedImg)
+            #resizedImg = cv2.resize(self.img, (0,0), fx=pow(0.5,i), fy=pow(0.5,i))
+            octave = self.createImgs_AtOctave(self.img)
             self.listOfOctaves.append(octave)
             sigma *= pow(self.k,(self.numsOfScales//2))
         return self.listOfOctaves
@@ -133,18 +135,27 @@ class SIFT:
         #self.listOfOctaves
         '''self.m = np.zeros((self.numsOfOctaves,self.numsOfScales,height,width))
         self.theta = np.zeros((self.numsOfOctaves,self.numsOfScales,height,width))'''
-        self.m = self.listOfOctaves.copy()
-        self.theta = self.listOfOctaves.copy()
+        #self.m = self.listOfOctaves.copy()
+        #self.theta = self.listOfOctaves.copy()
+        self.m = np.empty((self.numsOfOctaves,0)).tolist()
+        self.theta = np.empty((self.numsOfOctaves,0)).tolist()
         for o in range(len(self.listOfOctaves)): # o is octave, s is scale
             for s in range(len(self.listOfOctaves[o])): 
-                self.listOfOctaves[o][s] = (self.listOfOctaves[o][s][0].astype(np.float32),self.listOfOctaves[o][s][1])
-                L = self.listOfOctaves[o][s][0] # 0 for image, 1 for sigma
+                #self.listOfOctaves[o][s] = (self.listOfOctaves[o][s][0].astype(np.float32),self.listOfOctaves[o][s][1])
+                #L = self.listOfOctaves[o][s][0] # 0 for image, 1 for sigma
+                L = self.listOfOctaves[o][s][0].astype(np.float32).copy()
+                #self.m[o][s] = L.copy()
+                #self.theta[o][s] = L.copy()
                 height,width = L.shape
+                self.m[o].append(np.zeros((height,width),np.float32))
+                self.theta[o].append(np.zeros((height,width),np.float32))
                 for i in range(height):
                     for j in range(width):
                         if i+1<height and j+1<width and i-1>=0 and j-1>=0:
-                            self.m[o][s][0][i][j] = np.sqrt(pow(L[i][j+1]-L[i][j-1],2) + pow(L[i+1][j]-L[i-1][j],2)) 
-                            self.theta[o][s][0][i][j] = np.arctan2(L[i+1][j]-L[i-1][j],L[i][j+1]-L[i][j-1])*180/np.pi
+                            self.m[o][s][i][j] = np.sqrt(pow(L[i][j+1]-L[i][j-1],2) + pow(L[i+1][j]-L[i-1][j],2)) 
+                            self.theta[o][s][i][j] = np.arctan2(L[i+1][j]-L[i-1][j],L[i][j+1]-L[i][j-1])*180/np.pi
+                            if self.theta[o][s][i][j] < 0:
+                                self.theta[o][s][i][j] = 360 + self.theta[o][s][i][j]
          
     def aux_scaleDirections(self,thetas,numsOfDirection=8):
         h,w = thetas.shape
@@ -197,12 +208,12 @@ class SIFT:
         lenOfBin = 360/numsOfBins
         bins_counter = np.zeros(numsOfBins)
         roi_h, roi_w = roi_m.shape
-        for i in roi_h:
-            for j in roi_w:
+        for i in range(roi_h):
+            for j in range(roi_w):
                 # convert negative angle to positive
                 theta = roi_theta[i,j]
                 if roi_theta[i,j] < 0:
-                    theta = 360 - roi_theta[i,j]
+                    theta = 360 + roi_theta[i,j]
                 chosenBinIndex = int(theta/lenOfBin)
                 bins_counter[chosenBinIndex] += roi_m[i,j]
         return bins_counter
@@ -232,7 +243,8 @@ class SIFT:
                 # assign to feature vector
                 feature_vector[tmpIndex:tmpIndex+8] = bins_counter
                 tmpIndex += 8
-        return feature_vector
+        normalized_feature_vector = normalize(feature_vector[:,np.newaxis], axis=0).ravel()
+        return normalized_feature_vector
     
     def keypointDescriptor(self,k_y,k_x,mImg,thetaImg,dominant):
         sample_mKernel = np.zeros((16,16))
@@ -253,7 +265,9 @@ class SIFT:
                 # assign corresponding value to sample kernel
                 if 0<=n_x<width and 0<=n_y<height:
                     sample_mKernel[y,x] = mImg[n_y,n_x]
-                    sample_thetaKernel[y,x] = thetaImg[n_y,n_x]
+                    sample_thetaKernel[y,x] = thetaImg[n_y,n_x] - dominant
+                    if sample_thetaKernel[y,x] < 0:
+                        sample_thetaKernel[y,x] += 360
                 # else: Is is necessary delete this keypoint
        # Make 16 8-bin histograms
         gaussianKernel_1D = cv2.getGaussianKernel(16,0.5*16) # sigma = 0.5*window size
@@ -264,7 +278,7 @@ class SIFT:
         return feature_vector
     
     # Find all magnitude and orientation of a certain keypoint
-    def aux_find_peaks(self, hist_ori):
+    def aux_find_peaks(self, hist_ori, NUM_BINS):
         # Find max_peak
         max_peak = np.amax(hist_ori)
 
@@ -330,17 +344,21 @@ class SIFT:
             mag.append(hist_ori[z])
         
         return mag, ori
-
+    
     def orientationAssignmentAndKeypointDescription(self):
-        listOfKeypoints = self.findApproxKeypoints(10,10)
+        listOfKeypoints = self.findApproxKeypoints()
+        # newListOfKeypoints = np.empty((self.numsOfOctaves,0)).tolist()
         self.calGradientMagAndOrient_forPyramidL()
         # traverse list of keypoints in DOG images that is not auxiliary images(start and end)
+        
         for o in range(len(listOfKeypoints)): # o is octave, s is scale
             for s in range(len(listOfKeypoints[o])):
                #height,width = listOfKeypoints[o][s].shape
+               
                height,width = self.listOfOctaves[o][s][0].shape
-               for k in range(len(listOfKeypoints[o][s])): # --MODDED-- due to not having storage sigma in keypoint by using interpolation
-               # --REAL-- for keypoint in s, keypoint = (x,y,sigma)
+               deletedPointIndices = []
+               #tmpList = []
+               for k in range(len(listOfKeypoints[o][s])): # --MODDED-- due to not having storage sigma in keypoint by using interpolation # --REAL-- for keypoint in s, keypoint = (x,y,sigma)
                    # find index of image L in octave o having nearest sigma to current keypoints
                    chosenL =  s # choose the below image #--MODDED--
                    sigmaOfL = self.listOfOctaves[o][chosenL][1] #--MODDED--
@@ -349,11 +367,10 @@ class SIFT:
                  
                    # keypoint coordinate
                    (k_y,k_x) = listOfKeypoints[o][s][k]
-                   print(k_y,' ',k_x)
+                   
                    # Now, create orientation histogram
                    # Get 16x16 samples around this keypoint
                    if k_y-7>=0 and k_y+9<height and k_x-7>=0 and k_x+9<width:
-                       print('1')
                        # Get region of interest around current keypoint
                        roi_m = chosen_m[k_y-7:k_y+9, k_x-7:k_x+9]
                        roi_theta = chosen_theta[k_y-7:k_y+9, k_x-7:k_x+9]
@@ -365,31 +382,40 @@ class SIFT:
                        roi_m = np.multiply(roi_m,gaussianKernel_2D)
                        # count 36 bins histogram
                        bins_counter = self.aux_countingBins2(roi_m,roi_theta)
-
-                        ''' Vu Quoc Huy
-                        maxIndex = np.where(bins_counter == np.amax(bins_counter)) # get index of max value
-                        # choose DOMINANT DIRECTION: (maxIndex+1)*10-5 --MODDED--
-                        # real: fit parabola to 3 nearest bin
-                        dominant = (maxIndex+1)*10 - 5
-                        '''
-
-                        # Phung Tien Hao
-                        # Find all magnitude and orientation of this keypoint
-                        magnitude, orienation = self.aux.aux_find_peaks(bins_counter)
-                        # Note orientation may more than one and it is radian angle
-                        dominant = orienation
-
+                       maxIndex = np.where(bins_counter == np.amax(bins_counter))[0][0] # get index of max value
+                       # choose DOMINANT DIRECTION: (maxIndex+1)*10-5 --MODDED--
+                       # real: fit parabola to 3 nearest bin
+                       dominant = (maxIndex+1)*10 - 5
+                       
                        #================STEP 4: KEYPOINT DESCRIPTOR=======================================
                        feature_vector = self.keypointDescriptor(k_y,k_x,chosen_m,chosen_theta,dominant)
-                       listOfKeypoints[o][s][k] = (k_y,k_x,dominant,feature_vector)
+                       listOfKeypoints[o][s][k] = (k_y,k_x,sigmaOfL,dominant,feature_vector)
+                       #tmpList.append((k_y,k_x,dominant,feature_vector))
                    else: # delete the keypoint
-                       del listOfKeypoints[o][s][k]
+                       deletedPointIndices.append(k)
+               
+               for index in sorted(deletedPointIndices,reverse=True):
+                  del listOfKeypoints[o][s][index]
+        
         return listOfKeypoints
     
-    
-       # 0, 1.25, 2.5, 3.75, 5, 6.25, 7.5, 8.75, 10 
-       # lst = [[[1,3,2],[4,3],[1],[3,2]],[[3],[3,0,3,3]],[[1],[2],[3]]]                 
-       # [k_y-7:k_y+9, k_x-7:k_x+9]
+    def matchTwoImages(self,listOfKeypoints1,listOfKeypoints2):
+        listOfMatchingPair = []
+        for (i1,k1) in enumerate(listOfKeypoints1): 
+            nearest_index = -1
+            nearest_dist = 9999999
+            second_nearest_dist = 9999999
+            for (i2,k2) in enumerate(listOfKeypoints2):
+                f_vec1 = k1[4]
+                f_vec2 = k2[4]
+                dist = np.linalg.norm(f_vec1-f_vec2)
+                if dist < nearest_dist:
+                    second_nearest_dist = nearest_dist
+                    nearest_index = i2
+                    nearest_dist = k2
+            if 0.25 <= nearest_dist/second_nearest_dist <= 0.7:
+                listOfMatchingPair.append((i1,nearest_index))
+        return listOfMatchingPair
     
     def read_features(self, filename = ""):
         '''
@@ -441,3 +467,8 @@ class SIFT:
 
         # Print the number of matching keypoints between 2 images
         print("The number of matching keypoints between 2 images are %d." %len(matches))
+                
+                
+       # 0, 1.25, 2.5, 3.75, 5, 6.25, 7.5, 8.75, 10 
+       # lst = [[[1,3,2],[4,3],[1],[3,2]],[[3],[3,0,3,3]],[[1],[2],[3]]]                 
+       # [k_y-7:k_y+9, k_x-7:k_x+9]
