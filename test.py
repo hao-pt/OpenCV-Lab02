@@ -46,7 +46,6 @@ grayImg = cv2.imread(r"C:\Users\Tien Hao\Google Drive\Junior\TGMT\TH\DataSet\Tes
 
 # cv2.imwrite('sift_keypoints.jpg',img)
 
-print("The number of matching keypoints between 2 images are %d." %len(grayImg))
 
 
 
