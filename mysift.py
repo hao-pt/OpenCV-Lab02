@@ -9,7 +9,7 @@ import blob
 # -----------------------Define some constants-----------------------
 # Use for keypoints localization
 CONTRAST_THRESHOLD = 0.03
-CURVATURE_THRESHOLD = 10 
+CURVATURE_THRESHOLD = 10
 # Use for assigning orientation
 NUM_BINS = 36
 
@@ -450,57 +450,6 @@ class CSift:
             2. Getting rid of low-contrast and edge keypoints'''
         self.find_candidate_keypoints()
         
-        
-    def read_features(self, filename = ""):
-        '''
-        Read features properties from file
-        Each row contain first 4 values - location (coordinates, scale, dominent angle) 
-        and followed by 128 values of corresponding descriptor 
-        '''
-        # Read feature properties with numpy loadtxt
-        # Each row present for 1 feature
-        features = np.loadtxt(filename)
-        # Return locations and descriptors
-        return features[:,:4], features[:,4:]
-
-    def write_features(self, filename, locations, descriptors):
-        """Save features location and descriptor into file"""
-        np.savetxt(filename, np.hstack(locations, descriptors))
-
-    def plot_features(self, img, locations, isDrawRichKeypoints = True):
-        '''
-        isDrawRichKeypoints: default True
-        Use for drawing keypoints with size and orientation and vice versa.
-        '''
-        # Draw keypoint with size and orientation
-        if isDrawRichKeypoints:
-            kpImg = cv2.drawKeypoints(img, locations, flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        else:
-            kpImg = cv2.drawKeypoints(img, locations, color = (0,0,255)) # Keypoints are drawn with red color
-        
-        # Show image and keypoints
-        plt.figure()
-        plt.imshow(kpImg, cmap='gray', interpolation = 'bicubic')
-        plt.title('Sift keypoints'), plt.xticks([]), plt.yticks([])
-        
-        # Save image
-        # cv2.imwrite('sift_keypoints.jpg',img)
-
-    def draw_matches(self, train_img, train_locations, query_img, query_locations, matches):
-        '''
-        Locations include: coordinates (x, y), scale and angle
-        matches: are number of matched keypoints between train_img and query_img
-        '''
-        # flags = 2: Single keypoints will not be drawn.
-        matchedImg = cv2.drawMatches(train_img, train_locations, query_img, query_locations, matches, flags = 2)
-
-        # Show image with matching points
-        plt.title('Matching Points between 2 images')
-        plt.imshow(matchedImg)
-        plt.show()
-
-        # Print the number of matching keypoints between 2 images
-        print("The number of matching keypoints between 2 images are %d." %len(matches))
 
     # Sift detector
     def detectBySift(self):
